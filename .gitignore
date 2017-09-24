@@ -1,3 +1,20 @@
+## My customizations
+# For now until I refactor
+*.json
+*.txt
+
+# Secret files
+client_secret.json
+
+# Emacs temporary files
+*~
+\#*
+
+# Backup files
+*.bak
+
+
+## GitHub automatic python
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
