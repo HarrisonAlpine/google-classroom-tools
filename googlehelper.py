@@ -103,7 +103,7 @@ def download_response_list(fn, key, **kwargs):
     l = []
     page_token = None
     while True:
-        response = fn(pageToken = page_token, **kwargs).execute()
+        response = fn(pageToken=page_token, **kwargs).execute()
         l.extend(response.get(key,  []))
         page_token = response.get('nextPageToken', None)
         if not page_token:
