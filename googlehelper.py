@@ -47,6 +47,10 @@ CREDENTIAL_FROM_SCOPE = {
     SCOPE_DRIVE: 'drive.json'}
 
 
+DOWNLOAD_DIR = 'downloads'
+JSON_DIR = 'json'
+TXT_DIR = 'txt'
+
 def get_credentials(scope):
     if type(scope) is str:
         if scope not in CREDENTIAL_FROM_SCOPE:
@@ -109,3 +113,43 @@ def download_response_list(fn, key, **kwargs):
         if not page_token:
             break
     return l
+
+
+def download_response_get(fn, **kwargs):
+    response = fn(**kwargs).execute()
+    return response
+
+
+def download_courses():
+    credentials = get_credentials(SCOPE_COURSES)
+    service = get_service(credentials)
+    courses = download_response_list(service.courses().list,
+                                     'courses',
+                                     pageSize=100)
+    return courses
+
+
+def download_course(course_id):
+    credentials = get_credentials(SCOPE_COURSES)
+    service = get_service(credentials)
+    course = download_response_get(service.courses().get,
+                                   id=course_id)
+    return course
+
+
+def download_students(course_id):
+    credentials = get_credentials([SCOPE_ROSTERS, SCOPE_COURSES])
+    service = get_service(credentials)
+    return download_response_list(service.courses().students().list,
+                                  'students', courseId=course_id,
+                                  pageSize=100)
+
+
+def course_full_name(course):
+    return '{} {}'.format(course['name'], course['section'])
+
+
+def make_string_safe_filename(s):
+    keep_characters = ' -_.'
+    schars = [c for c in s if c.isalnum() or c in keep_characters]
+    return ''.join(schars).rstrip()

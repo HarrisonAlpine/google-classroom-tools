@@ -2,23 +2,27 @@
 
 import googlehelper as gh
 import json
+import os
 
-credentials = gh.get_credentials(gh.SCOPE_ROSTERS)
-service = gh.get_service(credentials)
-# course_id = '7155852796'  # Computer Programming A1
-# course_id = '7621825175'  # Robotics
-course_id = '7557587733'  # Computer Programming A4
+# DEFAULT_COURSE_ID = '7155852796'  # Computer Programming A1
+# DEFAULT_COURSE_ID = '7621825175'  # Robotics
+DEFAULT_COURSE_ID = '7557587733'  # Computer Programming A4
 
-students = gh.download_response_list(service.courses().students().list,
-                                     'students', courseId=course_id,
-                                     pageSize=100)
+if __name__ == '__main__':
+    course = gh.download_course(DEFAULT_COURSE_ID)
+    students = gh.download_students(DEFAULT_COURSE_ID)
 
-with open('students.txt', 'w') as f:
-    for student in students:
-        print(student['profile']['name']['fullName'],
-              "\t",
-              student['profile']['id'],
-              file=f)
+    course_name = gh.course_full_name(course)
+    course_dir_name = gh.make_string_safe_filename(course_name)
+    course_dir = os.path.join(gh.DOWNLOAD_DIR, course_dir_name)
+    os.makedirs(course_dir)
 
-with open('students.json', 'w') as f:
-    print(json.dumps(students, indent=2), file=f)
+    txt_file = os.path.join(course_dir, 'students.txt')
+    json_file = os.path.join(course_dir, 'students.json')
+    with open(txt_file, 'w') as f:
+        for student in students:
+            line = '{}\t{}'.format(student['profile']['name']['fullName'],
+                                   student['profile']['id'])
+            print(line, file=f)
+    with open(json_file, 'w') as f:
+        print(json.dumps(students, indent=2), file=f)
