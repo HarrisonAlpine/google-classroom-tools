@@ -6,6 +6,9 @@
 # Secret files
 client_secret.json
 
+# Private student files
+downloads
+
 # Emacs temporary files
 *~
 \#*
@@ -115,4 +118,4 @@ ENV/
 /site
 
 # mypy
-.mypy_cache/
+.mypy_cache/ 

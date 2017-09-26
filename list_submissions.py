@@ -10,6 +10,7 @@ import os
 # service = get_service(credentials)
 # drive_credentials = get_credentials(SCOPE_DRIVE)
 # drive_service = get_drive_service(drive_credentials)
+drive_service = gh.get_drive_service_from_scope(gh.SCOPE_DRIVE)
 course_id = '7155852796'  # Computer Programming A1
 # course_id = '7621825175'  # Robotics
 # course_id = '7557587733'  # Computer Programming A4
@@ -60,7 +61,7 @@ for student in students:
     # page_token = response.get('nextPageToken', None)
     # if not page_token:
         # break
-submissions = gh.download_submissions(course_id, submission_id)
+submissions = gh.download_submissions(course_id, course_work_id)
 
 # def format_filename(s):
     # """Take a string and return a valid filename constructed from the string.
@@ -108,13 +109,16 @@ for submission in submissions:
             file_id = attachment['driveFile']['id']
             file_name = attachment['driveFile']['title']
             print('\tSubmitted:', file_name)
-            download_filename = get_download_filename(download_dir, student_name, file_name)
+            # download_filename = get_download_filename(download_dir, student_name, file_name)
+            download_filename = gh.get_drive_file_download_filename(attachment['driveFile'],
+                                                                    student_id_dict[user_id])
+            download_file = os.path.join(course_work_dir, download_filename)
             # filename = '{}{}{}.{}'.format(
                 # download_dir,
                 # os.path.sep,
                 # student_name,
                 # 'zip')
-            download_file(drive_service, file_id, download_filename)
+            gh.download_file(drive_service, file_id, download_file)
             # results = drive_service.files().get_media(fileId=file_id).execute()
     except KeyError:
         file_id = 'No file submitted'

@@ -29,6 +29,8 @@ CREDENTIAL_ROSTERS = 'classroom.googleapis.com-rosters.json'
 SCOPE_STUDENT_SUBMISSIONS = 'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly'
 CREDENTIAL_STUDENT_SUBMISSIONS = 'classroom.googleapis.com-student-submissions.json'
 
+ASSIGNMENT = 'ASSIGNMENT'
+
 SCOPE_DRIVE = 'https://www.googleapis.com/auth/drive.readonly'
 
 SCOPE_ALL = [SCOPE_COURSES,
@@ -96,14 +98,20 @@ def get_drive_service(credentials):
     return service
 
 
+def get_drive_service_from_scope(scope):
+    credentials = get_credentials(scope)
+    return get_drive_service(credentials)
+
+
 def download_file(drive_service, file_id, filename):
     request = drive_service.files().get_media(fileId=file_id)
     fh = io.BytesIO()
     downloader = MediaIoBaseDownload(fh, request)
     done = False
+    print('Downloading into {}'.format(filename))
     while done is False:
         status, done = downloader.next_chunk()
-        print("Download %d%%." % int(status.progress() * 100))
+        print("Download {}%.".format(int(status.progress() * 100)))
     with open(filename, 'wb') as f:
         f.write(fh.getvalue())
 
@@ -153,9 +161,13 @@ def download_students(course_id):
 def download_assignments(course_id):
     service = get_service_from_scope(SCOPE_COURSEWORK)
     fn = service.courses().courseWork().list
-    assignments = download_response_list(fn, 'courseWork', 
-                                         courseId=course_id,
-                                         pageSize=100)
+    # assignments = download_response_list(fn, 'courseWork', 
+                                         # courseId=course_id,
+                                         # pageSize=100)
+    course_works = download_response_list(fn, 'courseWork', 
+                                          courseId=course_id,
+                                          pageSize=100)
+    assignments = [cw for cw in course_works if cw['workType'] == ASSIGNMENT]
     return assignments
 
 
@@ -163,19 +175,19 @@ def download_course_work(course_id, course_work_id):
     service = get_service_from_scope(SCOPE_COURSEWORK)
     fn = service.courses().courseWork().get
     course_work = download_response_get(fn, id=course_work_id,
-                                        courseId=course_work_id)
+                                        courseId=course_id)
     return course_work
 
 
-def download_submissions(course_id, submission_id):
+def download_submissions(course_id, course_work_id):
     service = get_service_from_scope(SCOPE_COURSEWORK)
-    drive_credentials = get_credentials(SCOPE_DRIVE)
-    drive_service = get_drive_service(drive_credentials)
-    students = download_students(course_id)
-    student_dict = {}
-    for student in students:
-        student_dict[student['userId']] = \
-            student['profile']['name']['fullName']
+    # drive_credentials = get_credentials(SCOPE_DRIVE)
+    # drive_service = get_drive_service(drive_credentials)
+    # students = download_students(course_id)
+    # student_dict = {}
+    # for student in students:
+        # student_dict[student['userId']] = \
+            # student['profile']['name']['fullName']
     fn = service.courses().courseWork().studentSubmissions().list
     # kwargs = {'courseId': course_id,
               # 'courseWorkId': course_work_id,
@@ -190,24 +202,33 @@ def download_submissions(course_id, submission_id):
 
 def get_course_from_user():
     courses = download_courses()
-    print('Courses:')
+    return get_choice_from_user(courses, title='Courses')
+
+
+def get_assignment_from_user(course_id):
+    assignments = download_assignments(course_id)
+    return get_choice_from_user(assignments, title='Assignments')
+
+
+def get_choice_from_user(choices, title=None):
     while True:
-        for i, course in enumerate(courses):
-            print('\t{}: {}'.format(i+1, course_full_name(course)))
-        print('Enter the index of the course you want:')
+        if title is not None:
+            print('{}:'.format(title))
+        for i, choice in enumerate(choices):
+            print('\t{}: {}'.format(i+1, choice_full_name(choice)))
+        print('Enter the index of the choice you want:')
         try:
             choice_index = int(input())
-            if choice_index not in range(1, len(courses)+1):
+            if choice_index not in range(1, len(choices)+1):
                 print('Not in range, try again')
             else:
                 break
         except ValueError:
             print('Not a number, try again')
         print('Press Ctrl-C to exit')
-    return courses[choice_index-1]
-    
-    
-    
+    return choices[choice_index-1]
+
+
 def course_full_name(course):
     return '{} {}'.format(course['name'], course['section'])
 
