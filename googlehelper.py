@@ -85,6 +85,11 @@ def get_service(credentials):
     return service
 
 
+def get_service_from_scope(scope):
+    credentials = get_credentials(scope)
+    return get_service(credentials)
+
+
 def get_drive_service(credentials):
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('drive', 'v3', http=http)
@@ -120,36 +125,133 @@ def download_response_get(fn, **kwargs):
     return response
 
 
+def download_course(course_id):
+
+    service = get_service_from_scope(SCOPE_COURSES)
+    fn = service.courses().get
+    course = download_response_get(fn, id=course_id)
+    return course
+
+
 def download_courses():
-    credentials = get_credentials(SCOPE_COURSES)
-    service = get_service(credentials)
+    service = get_service_from_scope(SCOPE_COURSES)
     courses = download_response_list(service.courses().list,
                                      'courses',
                                      pageSize=100)
     return courses
 
 
-def download_course(course_id):
-    credentials = get_credentials(SCOPE_COURSES)
-    service = get_service(credentials)
-    course = download_response_get(service.courses().get,
-                                   id=course_id)
-    return course
-
-
 def download_students(course_id):
-    credentials = get_credentials([SCOPE_ROSTERS, SCOPE_COURSES])
-    service = get_service(credentials)
-    return download_response_list(service.courses().students().list,
-                                  'students', courseId=course_id,
-                                  pageSize=100)
+    # service = get_service_from_scope([SCOPE_ROSTERS, SCOPE_COURSES])
+    service = get_service_from_scope(SCOPE_ROSTERS)
+    fn = service.courses().students().list
+    students = download_response_list(fn, 'students', courseId=course_id,
+                                      pageSize=100)
+    return students
 
 
+def download_assignments(course_id):
+    service = get_service_from_scope(SCOPE_COURSEWORK)
+    fn = service.courses().courseWork().list
+    assignments = download_response_list(fn, 'courseWork', 
+                                         courseId=course_id,
+                                         pageSize=100)
+    return assignments
+
+
+def download_course_work(course_id, course_work_id):
+    service = get_service_from_scope(SCOPE_COURSEWORK)
+    fn = service.courses().courseWork().get
+    course_work = download_response_get(fn, id=course_work_id,
+                                        courseId=course_work_id)
+    return course_work
+
+
+def download_submissions(course_id, submission_id):
+    service = get_service_from_scope(SCOPE_COURSEWORK)
+    drive_credentials = get_credentials(SCOPE_DRIVE)
+    drive_service = get_drive_service(drive_credentials)
+    students = download_students(course_id)
+    student_dict = {}
+    for student in students:
+        student_dict[student['userId']] = \
+            student['profile']['name']['fullName']
+    fn = service.courses().courseWork().studentSubmissions().list
+    # kwargs = {'courseId': course_id,
+              # 'courseWorkId': course_work_id,
+              # 'pageSize': 100}
+    submissions = download_response_list(fn,
+                                         'studentSubmissions',
+                                         courseId=course_id,
+                                         courseWorkId=course_work_id,
+                                         pageSize=100)
+    return submissions
+
+
+def get_course_from_user():
+    courses = download_courses()
+    print('Courses:')
+    while True:
+        for i, course in enumerate(courses):
+            print('\t{}: {}'.format(i+1, course_full_name(course)))
+        print('Enter the index of the course you want:')
+        try:
+            choice_index = int(input())
+            if choice_index not in range(1, len(courses)+1):
+                print('Not in range, try again')
+            else:
+                break
+        except ValueError:
+            print('Not a number, try again')
+        print('Press Ctrl-C to exit')
+    return courses[choice_index-1]
+    
+    
+    
 def course_full_name(course):
     return '{} {}'.format(course['name'], course['section'])
 
 
+def get_course_dir(course):
+    course_name = course_full_name(course)
+    course_dir_name = make_string_safe_filename(course_name)
+    course_dir = os.path.join(DOWNLOAD_DIR, course_dir_name)
+    # os.makedirs(course_dir, exist_ok=True)
+    return course_dir
+
+
+def get_course_work_dir(course_work, course=None, timeStamp=True):
+    if course is None:
+        course_id = course_work['courseId']
+        course = download_course(course_id)
+    course_dir = get_course_dir(course)
+    course_work_title = course_work['title']
+    course_work_dir = os.path.join(course_dir, course_work_title)
+    if timeStamp:
+        import datetime
+        stamp = make_datetime_str(datetime.datetime.now())
+        dir_name = 'Downloaded {}'.format(stamp)
+        course_work_dir = os.path.join(course_work_dir, dir_name)
+    return course_work_dir
+
+
+def get_drive_file_download_filename(drive_file, student):
+    student_name = student['profile']['name']['fullName']
+    drive_file_name = drive_file['title']
+    return '{}--{}'.format(student_name, drive_file_name)
+
+
 def make_string_safe_filename(s):
     keep_characters = ' -_.'
-    schars = [c for c in s if c.isalnum() or c in keep_characters]
+    def replace_bad_chars(c):
+        if c.isalnum() or c in keep_characters:
+            return c
+        else:
+            return '_'
+    # schars = [c for c in s if c.isalnum() or c in keep_characters]
+    schars = [replace_bad_chars(c) for c in s]
     return ''.join(schars).rstrip()
+
+
+def make_datetime_str(dt):
+    return '{:%Y-%m-%d_%H-%M-%S}'.format(dt)
