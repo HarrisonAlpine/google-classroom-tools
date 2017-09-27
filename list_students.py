@@ -10,11 +10,11 @@ DEFAULT_COURSE_ID = '7557587733'  # Computer Programming A4
 
 
 if __name__ == '__main__':
-    # course = gh.download_course(DEFAULT_COURSE_ID)
-    # students = gh.download_students(DEFAULT_COURSE_ID)
+    # course = gh.get_course(DEFAULT_COURSE_ID)
+    # students = gh.list_students(DEFAULT_COURSE_ID)
     course = gh.get_course_from_user()
     course_id = course['id']
-    students = gh.download_students(course_id)
+    students = gh.list_students(course_id)
 
     course_dir = gh.get_course_dir(course)
     os.makedirs(course_dir, exist_ok=True)
@@ -28,3 +28,5 @@ if __name__ == '__main__':
             print(line, file=f)
     with open(json_file, 'w') as f:
         print(json.dumps(students, indent=2), file=f)
+    with open(txt_file) as f:
+        print(f.read())

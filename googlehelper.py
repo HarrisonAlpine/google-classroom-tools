@@ -108,15 +108,15 @@ def download_file(drive_service, file_id, filename):
     fh = io.BytesIO()
     downloader = MediaIoBaseDownload(fh, request)
     done = False
-    print('Downloading into {}'.format(filename))
+    # print('Downloading into {}'.format(filename))
     while done is False:
         status, done = downloader.next_chunk()
-        print("Download {}%.".format(int(status.progress() * 100)))
+        # print("Download {}%.".format(int(status.progress() * 100)))
     with open(filename, 'wb') as f:
         f.write(fh.getvalue())
 
 
-def download_response_list(fn, key, **kwargs):
+def response_list(fn, key, **kwargs):
     l = []
     page_token = None
     while True:
@@ -128,94 +128,143 @@ def download_response_list(fn, key, **kwargs):
     return l
 
 
-def download_response_get(fn, **kwargs):
+def response_get(fn, **kwargs):
     response = fn(**kwargs).execute()
     return response
 
 
-def download_course(course_id):
+def get_course(course_id):
 
     service = get_service_from_scope(SCOPE_COURSES)
     fn = service.courses().get
-    course = download_response_get(fn, id=course_id)
+    course = response_get(fn, id=course_id)
     return course
 
 
-def download_courses():
+def list_courses():
     service = get_service_from_scope(SCOPE_COURSES)
-    courses = download_response_list(service.courses().list,
-                                     'courses',
-                                     pageSize=100)
+    courses = response_list(service.courses().list, 'courses', pageSize=100)
     return courses
 
 
-def download_students(course_id):
+def list_students(course_id):
     # service = get_service_from_scope([SCOPE_ROSTERS, SCOPE_COURSES])
     service = get_service_from_scope(SCOPE_ROSTERS)
     fn = service.courses().students().list
-    students = download_response_list(fn, 'students', courseId=course_id,
+    students = response_list(fn, 'students', courseId=course_id,
                                       pageSize=100)
     return students
 
 
-def download_assignments(course_id):
+def get_course_work(course_id, course_work_id):
+    service = get_service_from_scope(SCOPE_COURSEWORK)
+    fn = service.courses().courseWork().get
+    course_work = response_get(fn, id=course_work_id,
+                               courseId=course_id)
+    return course_work
+
+
+def list_assignments(course_id):
     service = get_service_from_scope(SCOPE_COURSEWORK)
     fn = service.courses().courseWork().list
-    # assignments = download_response_list(fn, 'courseWork', 
-                                         # courseId=course_id,
-                                         # pageSize=100)
-    course_works = download_response_list(fn, 'courseWork', 
-                                          courseId=course_id,
-                                          pageSize=100)
+    course_works = response_list(fn, 'courseWork', courseId=course_id,
+                                 pageSize=100)
     assignments = [cw for cw in course_works if cw['workType'] == ASSIGNMENT]
     return assignments
 
 
-def download_course_work(course_id, course_work_id):
+def list_submissions(course_id, course_work_id):
     service = get_service_from_scope(SCOPE_COURSEWORK)
-    fn = service.courses().courseWork().get
-    course_work = download_response_get(fn, id=course_work_id,
-                                        courseId=course_id)
-    return course_work
-
-
-def download_submissions(course_id, course_work_id):
-    service = get_service_from_scope(SCOPE_COURSEWORK)
-    # drive_credentials = get_credentials(SCOPE_DRIVE)
-    # drive_service = get_drive_service(drive_credentials)
-    # students = download_students(course_id)
-    # student_dict = {}
-    # for student in students:
-        # student_dict[student['userId']] = \
-            # student['profile']['name']['fullName']
     fn = service.courses().courseWork().studentSubmissions().list
-    # kwargs = {'courseId': course_id,
-              # 'courseWorkId': course_work_id,
-              # 'pageSize': 100}
-    submissions = download_response_list(fn,
-                                         'studentSubmissions',
-                                         courseId=course_id,
-                                         courseWorkId=course_work_id,
-                                         pageSize=100)
+
+    submissions = response_list(fn, 'studentSubmissions', courseId=course_id,
+                                courseWorkId=course_work_id, pageSize=100)
     return submissions
 
 
+def download_assignment_submissions(course_id, course_work_id, 
+                                    course=None, course_work=None, 
+                                    assignment_submissions=None):
+    if course is None:
+        course = get_course(course_id)
+    if course_work is None:
+        course_work = get_course_work(course_id, course_work_id)
+    drive_service = get_drive_service_from_scope(SCOPE_DRIVE)
+    if assignment_submissions is None:
+        assignment_submissions = list_assignment_submissions(course_id, 
+                                                             course_work_id)
+    student_id_dict = create_student_id_dict(course_id)
+    course_work_dir = get_course_work_dir(course_work, course=course)
+    os.makedirs(course_work_dir, exist_ok=True)
+    for assignment_submission in assignment_submissions:
+        user_id = assignment_submission['userId']
+        student_name = student_id_dict[user_id]['profile']['name']['fullName']
+        download_assignment_submission_files(assignment_submission, 
+                                             student_name, course_work_dir,
+                                             drive_service)
+
+
+def download_assignment_submission_files(assignment_submission, student_name, 
+                                         download_dir, drive_service):
+    if 'assignmentSubmission' not in assignment_submission:
+        # raise Exception('Attempted to download non-assignment submission')
+        print('{} did not have an assignment submission??'.format(student_name))
+        return
+    if 'attachments' not in assignment_submission['assignmentSubmission']:
+        print('{} did not include any attachments'.format(student_name))
+        return
+    attachments = assignment_submission['assignmentSubmission']['attachments']
+    # print('attachments: {}\nlen(attachments): {}'.format(attachments, len(attachments)))
+    if not attachments:
+        return
+    if len(attachments) == 1:
+        download_attachment(attachments[0], student_name, download_dir, 
+                            drive_service)
+    else:
+        for i, attachment in enumerate(attachments):
+            download_attachment(attachment, student_name, download_dir, 
+                                drive_service, suffix=i)
+
+
+def download_attachment(attachment, student_name, download_dir, drive_service,
+                        suffix=None):
+    if 'driveFile' not in attachment:
+        # raise Exception('Cannot download attachment that is not a Drive File')
+        attachment_type = [k for k in attachment.keys()][0]
+        print('{} submitted a {} instead of a drive file'.format(
+               student_name, attachment_type))
+    drive_file = attachment['driveFile']
+    drive_file_id = drive_file['id']
+    drive_file_name = drive_file['title']
+    filename = get_drive_file_download_filename(drive_file, student_name, 
+                                                suffix)
+    filepath = os.path.join(download_dir, filename)
+    print('Downloading {}\'s file: {}'.format(student_name, drive_file_name))
+    download_file(drive_service, drive_file_id, filepath)
+
+
 def get_course_from_user():
-    courses = download_courses()
-    return get_choice_from_user(courses, title='Courses')
+    courses = list_courses()
+    def course_full_name(course):
+        return '{} {}'.format(course['name'], course['section'])
+    return get_choice_from_user(courses, course_full_name,
+                                title='Courses')
 
 
 def get_assignment_from_user(course_id):
-    assignments = download_assignments(course_id)
-    return get_choice_from_user(assignments, title='Assignments')
+    assignments = list_assignments(course_id)
+    def assignment_name(course):
+        return course['title']
+    return get_choice_from_user(assignments, assignment_name, 
+                                title='Assignments')
 
 
-def get_choice_from_user(choices, title=None):
+def get_choice_from_user(choices, strf, title=None):
     while True:
         if title is not None:
             print('{}:'.format(title))
         for i, choice in enumerate(choices):
-            print('\t{}: {}'.format(i+1, choice_full_name(choice)))
+            print('\t{}: {}'.format(i+1, strf(choice)))
         print('Enter the index of the choice you want:')
         try:
             choice_index = int(input())
@@ -233,6 +282,17 @@ def course_full_name(course):
     return '{} {}'.format(course['name'], course['section'])
 
 
+def create_student_id_dict(course_id=None, students=None):
+    if course_id is None and students is None:
+        raise Exception('Need course_id or students')
+    if students is None:
+        students = list_students(course_id)
+    student_id_dict = {}
+    for student in students:
+        student_id_dict[student['userId']] = student
+    return student_id_dict
+
+
 def get_course_dir(course):
     course_name = course_full_name(course)
     course_dir_name = make_string_safe_filename(course_name)
@@ -244,7 +304,7 @@ def get_course_dir(course):
 def get_course_work_dir(course_work, course=None, timeStamp=True):
     if course is None:
         course_id = course_work['courseId']
-        course = download_course(course_id)
+        course = get_course(course_id)
     course_dir = get_course_dir(course)
     course_work_title = course_work['title']
     course_work_dir = os.path.join(course_dir, course_work_title)
@@ -256,8 +316,9 @@ def get_course_work_dir(course_work, course=None, timeStamp=True):
     return course_work_dir
 
 
-def get_drive_file_download_filename(drive_file, student):
-    student_name = student['profile']['name']['fullName']
+def get_drive_file_download_filename(drive_file, student_name, suffix=None):
+    if suffix is not None:
+        student_name = '{}--{:02}'.format(student_name, suffix)
     drive_file_name = drive_file['title']
     return '{}--{}'.format(student_name, drive_file_name)
 
