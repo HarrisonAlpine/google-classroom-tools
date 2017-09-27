@@ -191,8 +191,7 @@ def download_assignment_submissions(course_id, course_work_id,
         course_work = get_course_work(course_id, course_work_id)
     drive_service = get_drive_service_from_scope(SCOPE_DRIVE)
     if assignment_submissions is None:
-        assignment_submissions = list_assignment_submissions(course_id, 
-                                                             course_work_id)
+        assignment_submissions = list_assignments(course_id, course_work_id)
     student_id_dict = create_student_id_dict(course_id)
     course_work_dir = get_course_work_dir(course_work, course=course)
     os.makedirs(course_work_dir, exist_ok=True)
@@ -214,7 +213,8 @@ def download_assignment_submission_files(assignment_submission, student_name,
         print('{} did not include any attachments'.format(student_name))
         return
     attachments = assignment_submission['assignmentSubmission']['attachments']
-    # print('attachments: {}\nlen(attachments): {}'.format(attachments, len(attachments)))
+    # print('attachments: {}\nlen(attachments): {}'.format(attachments,
+    #                                                      len(attachments)))
     if not attachments:
         return
     if len(attachments) == 1:
@@ -293,10 +293,14 @@ def create_student_id_dict(course_id=None, students=None):
     return student_id_dict
 
 
+def get_download_dir():
+    return os.path.join('.', DOWNLOAD_DIR)
+
+
 def get_course_dir(course):
     course_name = course_full_name(course)
     course_dir_name = make_string_safe_filename(course_name)
-    course_dir = os.path.join(DOWNLOAD_DIR, course_dir_name)
+    course_dir = os.path.join(get_download_dir(), course_dir_name)
     # os.makedirs(course_dir, exist_ok=True)
     return course_dir
 

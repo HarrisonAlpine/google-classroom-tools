@@ -8,8 +8,8 @@ import os
 if __name__ == '__main__':
     courses = gh.list_courses()
 
-    course_dir = gh.get_course_dir(course)
-    os.makedirs(course_dir, exist_ok=True)
+    download_dir = gh.get_download_dir()
+    os.makedirs(download_dir, exist_ok=True)
 
     txt_file = os.path.join(gh.DOWNLOAD_DIR, 'courses.txt')
     json_file = os.path.join(gh.DOWNLOAD_DIR, 'courses.json')
