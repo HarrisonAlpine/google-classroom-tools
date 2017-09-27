@@ -30,9 +30,9 @@ if __name__ == '__main__':
     assignment = gh.get_assignment_from_user(course_id)
     course_work_id = assignment['id']
     assignment_submissions = gh.list_submissions(course_id, course_work_id)
-    # gh.download_assignment_submissions(course_id, course_work_id, 
-                                       # assignment_submissions=assignment_submissions,
-                                       # course=course, course_work=assignment)
+    gh.download_assignment_submissions(course_id, course_work_id, 
+                                       assignment_submissions=assignment_submissions,
+                                       course=course, course_work=assignment)
     
     course_work_dir = gh.get_course_work_dir(assignment, course=course)
     os.makedirs(course_work_dir, exist_ok=True)
@@ -46,5 +46,5 @@ if __name__ == '__main__':
             print(line, file=f)
     with open(json_file, 'w') as f:
         print(json.dumps(assignment_submissions, indent=2), file=f)
-    with open(txt_file) as f:
-        print(f.read())
+    # with open(txt_file) as f:
+    #     print(f.read())
