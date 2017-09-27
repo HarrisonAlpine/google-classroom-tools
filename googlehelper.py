@@ -20,49 +20,73 @@ except ImportError:
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'Mr. McCullough Custom Tools'
 
-SCOPE_COURSES = 'https://www.googleapis.com/auth/classroom.courses.readonly'
-CREDENTIAL_COURSES = 'classroom.googleapis.com-courses.json'
-SCOPE_COURSEWORK = 'https://www.googleapis.com/auth/classroom.coursework.students.readonly'
-CREDENTIAL_COURSEWORK = 'classroom.googleapis.com-coursework.json'
-SCOPE_ROSTERS = 'https://www.googleapis.com/auth/classroom.rosters.readonly'
-CREDENTIAL_ROSTERS = 'classroom.googleapis.com-rosters.json'
-SCOPE_STUDENT_SUBMISSIONS = 'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly'
-CREDENTIAL_STUDENT_SUBMISSIONS = 'classroom.googleapis.com-student-submissions.json'
+SCOPE_PREFIX = 'https://www.googleapis.com/auth/'
+# CLASSROOM_CREDENTIALS_PREFIX = 'classroom.googleapis.com'
+# DRIVE_CREDENTIALS_PREFIX = 'drive.googleapis.com'
 
-ASSIGNMENT = 'ASSIGNMENT'
-
-SCOPE_DRIVE = 'https://www.googleapis.com/auth/drive.readonly'
+SCOPE_COURSES = SCOPE_PREFIX + 'classroom.courses.readonly'
+# CREDENTIAL_COURSES = CLASSROOM_CREDENTIALS_PREFIX + '-courses.json'
+SCOPE_COURSEWORK = SCOPE_PREFIX + 'classroom.coursework.students.readonly'
+# CREDENTIAL_COURSEWORK = CLASSROOM_CREDENTIALS_PREFIX + '-coursework.json'
+SCOPE_ROSTERS = SCOPE_PREFIX + 'classroom.rosters.readonly'
+# CREDENTIAL_ROSTERS = CLASSROOM_CREDENTIALS_PREFIX + '-rosters.json'
+SCOPE_STUDENT_SUBMISSIONS = SCOPE_PREFIX + \
+                            'classroom.student-submissions.students.readonly'
+# CREDENTIAL_STUDENT_SUBMISSIONS = CLASSROOM_CREDENTIALS_PREFIX + \
+#                                  '-student-submissions.json'
+SCOPE_DRIVE = SCOPE_PREFIX + 'drive.readonly'
+# CREDENTIAL_DRIVE = DRIVE_CREDENTIALS_PREFIX + '-drive.json'
 
 SCOPE_ALL = [SCOPE_COURSES,
              SCOPE_COURSEWORK,
              SCOPE_ROSTERS,
              SCOPE_STUDENT_SUBMISSIONS,
              SCOPE_DRIVE]
-CREDENTIAL_ALL = 'classroom.googleapis.com-all.json'
-CREDENTIAL_MULTIPLE = 'classroom.googleapis.com-multiple.json'
+# CREDENTIAL_ALL = CLASSROOM_CREDENTIALS_PREFIX + '-all.json'
+# CREDENTIAL_MULTIPLE = CLASSROOM_CREDENTIALS_PREFIX + '-multiple.json'
 
-CREDENTIAL_FROM_SCOPE = {
-    SCOPE_COURSES: CREDENTIAL_COURSES,
-    SCOPE_COURSEWORK: CREDENTIAL_COURSEWORK,
-    SCOPE_ROSTERS: CREDENTIAL_ROSTERS,
-    SCOPE_STUDENT_SUBMISSIONS: CREDENTIAL_STUDENT_SUBMISSIONS,
-    SCOPE_DRIVE: 'drive.json'}
+CREDENTIALS_SUFFIX = '-credentials.json'
 
+def safe_name_from_scope(scope):
+    return scope.rsplit('/', 1)[-1]
+
+def credentials_file_from_scope(scope):
+    return safe_name_from_scope(scope) + CREDENTIALS_SUFFIX
+
+def credentials_file_from_scopes(scopes):
+    return '-'.join([safe_name_from_scope(s) for s in scopes]) + \
+        CREDENTIALS_SUFFIX
+
+# CREDENTIAL_FROM_SCOPE = {
+#     SCOPE_COURSES: CREDENTIAL_COURSES,
+#     SCOPE_COURSEWORK: CREDENTIAL_COURSEWORK,
+#     SCOPE_ROSTERS: CREDENTIAL_ROSTERS,
+#     SCOPE_STUDENT_SUBMISSIONS: CREDENTIAL_STUDENT_SUBMISSIONS,
+#     SCOPE_DRIVE: CREDENTIAL_DRIVE}
 
 DOWNLOAD_DIR = 'downloads'
 JSON_DIR = 'json'
 TXT_DIR = 'txt'
 
+ASSIGNMENT = 'ASSIGNMENT'
+
 def get_credentials(scope):
     if type(scope) is str:
-        if scope not in CREDENTIAL_FROM_SCOPE:
-            raise Exception('Scope (' + scope + ') is invalid.')
-        credential_name = CREDENTIAL_FROM_SCOPE[scope]
+        credential_name = credentials_file_from_scope(scope)
+        # if scope not in CREDENTIAL_FROM_SCOPE:
+        #     raise Exception('Scope (' + scope + ') is invalid.')
+        # credential_name = CREDENTIAL_FROM_SCOPE[scope]
     else:
-        for s in scope:
-            if s not in CREDENTIAL_FROM_SCOPE:
-                raise Exception('Scope "' + s + '" was invalid.')
-        credential_name = CREDENTIAL_MULTIPLE
+        credential_name = credentials_file_from_scope('-'.join(scope))
+        # for s in scope:
+        #     if s not in CREDENTIAL_FROM_SCOPE:
+        #         raise Exception('Scope "' + s + '" was invalid.')
+        # credential_name = CREDENTIAL_MULTIPLE
+    ############################################################################
+    # we really need all of them, so
+    scope = SCOPE_ALL
+    credential_name = 'classroom-bulk-download-credentials.json'
+    ############################################################################
     home_dir = os.path.expanduser('~')
     credential_dir = os.path.join(home_dir, '.credentials')
     if not os.path.exists(credential_dir):
@@ -182,8 +206,8 @@ def list_submissions(course_id, course_work_id):
     return submissions
 
 
-def download_assignment_submissions(course_id, course_work_id, 
-                                    course=None, course_work=None, 
+def download_assignment_submissions(course_id, course_work_id,
+                                    course=None, course_work=None,
                                     assignment_submissions=None):
     if course is None:
         course = get_course(course_id)
@@ -198,12 +222,12 @@ def download_assignment_submissions(course_id, course_work_id,
     for assignment_submission in assignment_submissions:
         user_id = assignment_submission['userId']
         student_name = student_id_dict[user_id]['profile']['name']['fullName']
-        download_assignment_submission_files(assignment_submission, 
+        download_assignment_submission_files(assignment_submission,
                                              student_name, course_work_dir,
                                              drive_service)
 
 
-def download_assignment_submission_files(assignment_submission, student_name, 
+def download_assignment_submission_files(assignment_submission, student_name,
                                          download_dir, drive_service):
     if 'assignmentSubmission' not in assignment_submission:
         # raise Exception('Attempted to download non-assignment submission')
@@ -218,11 +242,11 @@ def download_assignment_submission_files(assignment_submission, student_name,
     if not attachments:
         return
     if len(attachments) == 1:
-        download_attachment(attachments[0], student_name, download_dir, 
+        download_attachment(attachments[0], student_name, download_dir,
                             drive_service)
     else:
         for i, attachment in enumerate(attachments):
-            download_attachment(attachment, student_name, download_dir, 
+            download_attachment(attachment, student_name, download_dir,
                                 drive_service, suffix=i)
 
 
@@ -236,7 +260,7 @@ def download_attachment(attachment, student_name, download_dir, drive_service,
     drive_file = attachment['driveFile']
     drive_file_id = drive_file['id']
     drive_file_name = drive_file['title']
-    filename = get_drive_file_download_filename(drive_file, student_name, 
+    filename = get_drive_file_download_filename(drive_file, student_name,
                                                 suffix)
     filepath = os.path.join(download_dir, filename)
     print('Downloading {}\'s file: {}'.format(student_name, drive_file_name))
@@ -255,7 +279,7 @@ def get_assignment_from_user(course_id):
     assignments = list_assignments(course_id)
     def assignment_name(course):
         return course['title']
-    return get_choice_from_user(assignments, assignment_name, 
+    return get_choice_from_user(assignments, assignment_name,
                                 title='Assignments')
 
 
