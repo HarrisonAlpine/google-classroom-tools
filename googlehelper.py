@@ -21,54 +21,42 @@ CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'Mr. McCullough Custom Tools'
 
 SCOPE_PREFIX = 'https://www.googleapis.com/auth/'
-# CLASSROOM_CREDENTIALS_PREFIX = 'classroom.googleapis.com'
-# DRIVE_CREDENTIALS_PREFIX = 'drive.googleapis.com'
 
 SCOPE_COURSES = SCOPE_PREFIX + 'classroom.courses.readonly'
-# CREDENTIAL_COURSES = CLASSROOM_CREDENTIALS_PREFIX + '-courses.json'
 SCOPE_COURSEWORK = SCOPE_PREFIX + 'classroom.coursework.students.readonly'
-# CREDENTIAL_COURSEWORK = CLASSROOM_CREDENTIALS_PREFIX + '-coursework.json'
 SCOPE_ROSTERS = SCOPE_PREFIX + 'classroom.rosters.readonly'
-# CREDENTIAL_ROSTERS = CLASSROOM_CREDENTIALS_PREFIX + '-rosters.json'
 SCOPE_STUDENT_SUBMISSIONS = SCOPE_PREFIX + \
                             'classroom.student-submissions.students.readonly'
-# CREDENTIAL_STUDENT_SUBMISSIONS = CLASSROOM_CREDENTIALS_PREFIX + \
-#                                  '-student-submissions.json'
 SCOPE_DRIVE = SCOPE_PREFIX + 'drive.readonly'
-# CREDENTIAL_DRIVE = DRIVE_CREDENTIALS_PREFIX + '-drive.json'
 
 SCOPE_ALL = [SCOPE_COURSES,
              SCOPE_COURSEWORK,
              SCOPE_ROSTERS,
              SCOPE_STUDENT_SUBMISSIONS,
              SCOPE_DRIVE]
-# CREDENTIAL_ALL = CLASSROOM_CREDENTIALS_PREFIX + '-all.json'
-# CREDENTIAL_MULTIPLE = CLASSROOM_CREDENTIALS_PREFIX + '-multiple.json'
 
 CREDENTIALS_SUFFIX = '-credentials.json'
+
 
 def safe_name_from_scope(scope):
     return scope.rsplit('/', 1)[-1]
 
+
 def credentials_file_from_scope(scope):
     return safe_name_from_scope(scope) + CREDENTIALS_SUFFIX
+
 
 def credentials_file_from_scopes(scopes):
     return '-'.join([safe_name_from_scope(s) for s in scopes]) + \
         CREDENTIALS_SUFFIX
 
-# CREDENTIAL_FROM_SCOPE = {
-#     SCOPE_COURSES: CREDENTIAL_COURSES,
-#     SCOPE_COURSEWORK: CREDENTIAL_COURSEWORK,
-#     SCOPE_ROSTERS: CREDENTIAL_ROSTERS,
-#     SCOPE_STUDENT_SUBMISSIONS: CREDENTIAL_STUDENT_SUBMISSIONS,
-#     SCOPE_DRIVE: CREDENTIAL_DRIVE}
 
 DOWNLOAD_DIR = 'downloads'
 JSON_DIR = 'json'
 TXT_DIR = 'txt'
 
 ASSIGNMENT = 'ASSIGNMENT'
+
 
 def get_credentials(scope):
     if type(scope) is str:
@@ -82,11 +70,11 @@ def get_credentials(scope):
         #     if s not in CREDENTIAL_FROM_SCOPE:
         #         raise Exception('Scope "' + s + '" was invalid.')
         # credential_name = CREDENTIAL_MULTIPLE
-    ############################################################################
+    ###########################################################################
     # we really need all of them, so
     scope = SCOPE_ALL
     credential_name = 'classroom-bulk-download-credentials.json'
-    ############################################################################
+    ###########################################################################
     home_dir = os.path.expanduser('~')
     credential_dir = os.path.join(home_dir, '.credentials')
     if not os.path.exists(credential_dir):
@@ -176,7 +164,7 @@ def list_students(course_id):
     service = get_service_from_scope(SCOPE_ROSTERS)
     fn = service.courses().students().list
     students = response_list(fn, 'students', courseId=course_id,
-                                      pageSize=100)
+                             pageSize=100)
     return students
 
 
@@ -208,30 +196,32 @@ def list_submissions(course_id, course_work_id):
 
 def download_assignment_submissions(course_id, course_work_id,
                                     course=None, course_work=None,
-                                    assignment_submissions=None):
+                                    submissions=None,
+                                    assignment_dir=None):
     if course is None:
         course = get_course(course_id)
     if course_work is None:
         course_work = get_course_work(course_id, course_work_id)
+    if submissions is None:
+        submissions = list_assignments(course_id, course_work_id)
+    if assignment_dir is None:
+        assignment_dir = get_course_work_dir(course_work, course=course)
     drive_service = get_drive_service_from_scope(SCOPE_DRIVE)
-    if assignment_submissions is None:
-        assignment_submissions = list_assignments(course_id, course_work_id)
     student_id_dict = create_student_id_dict(course_id)
-    course_work_dir = get_course_work_dir(course_work, course=course)
-    os.makedirs(course_work_dir, exist_ok=True)
-    for assignment_submission in assignment_submissions:
-        user_id = assignment_submission['userId']
+    os.makedirs(assignment_dir, exist_ok=True)
+    for submission in submissions:
+        user_id = submission['userId']
         student_name = student_id_dict[user_id]['profile']['name']['fullName']
-        download_assignment_submission_files(assignment_submission,
-                                             student_name, course_work_dir,
-                                             drive_service)
+        download_assignment_submission_files(submission, student_name,
+                                             assignment_dir, drive_service)
 
 
 def download_assignment_submission_files(assignment_submission, student_name,
                                          download_dir, drive_service):
     if 'assignmentSubmission' not in assignment_submission:
         # raise Exception('Attempted to download non-assignment submission')
-        print('{} did not have an assignment submission??'.format(student_name))
+        print('{} did not have an assignment submission??'.
+              format(student_name))
         return
     if 'attachments' not in assignment_submission['assignmentSubmission']:
         print('{} did not include any attachments'.format(student_name))
@@ -253,7 +243,8 @@ def download_assignment_submission_files(assignment_submission, student_name,
 def download_attachment(attachment, student_name, download_dir, drive_service,
                         suffix=None):
     if 'driveFile' not in attachment:
-        # raise Exception('Cannot download attachment that is not a Drive File')
+        # raise Exception(
+        #     'Cannot download attachment that is not Drive File')
         attachment_type = [k for k in attachment.keys()][0]
         print('{} submitted a {} instead of a drive file'.format(
                student_name, attachment_type))
@@ -269,6 +260,7 @@ def download_attachment(attachment, student_name, download_dir, drive_service,
 
 def get_course_from_user():
     courses = list_courses()
+
     def course_full_name(course):
         return '{} {}'.format(course['name'], course['section'])
     return get_choice_from_user(courses, course_full_name,
@@ -277,6 +269,7 @@ def get_course_from_user():
 
 def get_assignment_from_user(course_id):
     assignments = list_assignments(course_id)
+
     def assignment_name(course):
         return course['title']
     return get_choice_from_user(assignments, assignment_name,
@@ -303,7 +296,7 @@ def get_choice_from_user(choices, strf, title=None):
 
 
 def course_full_name(course):
-    return '{} {}'.format(course['name'], course['section'])
+    return '{}-{}'.format(course['name'], course['section'])
 
 
 def create_student_id_dict(course_id=None, students=None):
@@ -339,7 +332,7 @@ def get_course_work_dir(course_work, course=None, timeStamp=True):
     if timeStamp:
         import datetime
         stamp = make_datetime_str(datetime.datetime.now())
-        dir_name = 'Downloaded {}'.format(stamp)
+        dir_name = '{}'.format(stamp)
         course_work_dir = os.path.join(course_work_dir, dir_name)
     return course_work_dir
 
@@ -347,20 +340,25 @@ def get_course_work_dir(course_work, course=None, timeStamp=True):
 def get_drive_file_download_filename(drive_file, student_name, suffix=None):
     if suffix is not None:
         student_name = '{}--{:02}'.format(student_name, suffix)
-    drive_file_name = drive_file['title']
-    return '{}--{}'.format(student_name, drive_file_name)
+    drive_file_name, drive_file_ext = os.path.splitext(drive_file['title'])
+    # return '{}--{}'.format(student_name, drive_file_name)
+    return student_name + drive_file_ext
 
 
 def make_string_safe_filename(s):
-    keep_characters = ' -_.'
-    def replace_bad_chars(c):
-        if c.isalnum() or c in keep_characters:
-            return c
-        else:
-            return '_'
-    # schars = [c for c in s if c.isalnum() or c in keep_characters]
-    schars = [replace_bad_chars(c) for c in s]
-    return ''.join(schars).rstrip()
+    keep_characters = '-_.'
+    return ''.join([c for c in s.replace(' ', '_')
+                    if c.isalnum() or c in keep_characters])
+    # keep_characters = ' -_.'
+
+    # def replace_bad_chars(c):
+    #     if c.isalnum() or c in keep_characters:
+    #         return c
+    #     else:
+    #         return '_'
+    # # schars = [c for c in s if c.isalnum() or c in keep_characters]
+    # schars = [replace_bad_chars(c) for c in s]
+    # return ''.join(schars).rstrip()
 
 
 def make_datetime_str(dt):
