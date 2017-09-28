@@ -159,6 +159,13 @@ def list_courses():
     return courses
 
 
+def get_student(course_id, student_id):
+    service = get_service_from_scope(SCOPE_ROSTERS)
+    fn = service.courses().students().get
+    student = response_get(fn, courseId=course_id, userId=student_id)
+    return student
+
+
 def list_students(course_id):
     # service = get_service_from_scope([SCOPE_ROSTERS, SCOPE_COURSES])
     service = get_service_from_scope(SCOPE_ROSTERS)
@@ -185,10 +192,18 @@ def list_assignments(course_id):
     return assignments
 
 
+def list_submissions_for_student(course_id, course_work_id, student_id):
+    service = get_service_from_scope(SCOPE_COURSEWORK)
+    fn = service.courses().courseWork().studentSubmissions().list
+    submissions = response_list(fn, 'studentSubmissions', courseId=course_id,
+                                courseWorkId=course_work_id, userId=student_id,
+                                pageSize=100)
+    return submissions
+
+
 def list_submissions(course_id, course_work_id):
     service = get_service_from_scope(SCOPE_COURSEWORK)
     fn = service.courses().courseWork().studentSubmissions().list
-
     submissions = response_list(fn, 'studentSubmissions', courseId=course_id,
                                 courseWorkId=course_work_id, pageSize=100)
     return submissions
@@ -216,6 +231,46 @@ def download_assignment_submissions(course_id, course_work_id,
                                              assignment_dir, drive_service)
 
 
+def download_unreturned_assignment_submissions(course_id, course_work_id,
+                                               course=None, course_work=None,
+                                               submissions=None,
+                                               assignment_dir=None):
+    if course is None:
+        course = get_course(course_id)
+    if course_work is None:
+        course_work = get_course_work(course_id, course_work_id)
+    if submissions is None:
+        submissions = list_assignments(course_id, course_work_id)
+    if assignment_dir is None:
+        assignment_dir = get_course_work_dir(course_work, course=course)
+    assignment_dir += '--UNRETURNED'
+    drive_service = get_drive_service_from_scope(SCOPE_DRIVE)
+    student_id_dict = create_student_id_dict(course_id)
+    os.makedirs(assignment_dir, exist_ok=True)
+    new_submissions = [s for s in submissions if s['state'] != 'RETURNED']
+    for submission in new_submissions:
+        user_id = submission['userId']
+        student_name = student_id_dict[user_id]['profile']['name']['fullName']
+        download_assignment_submission_files(submission, student_name,
+                                             assignment_dir, drive_service)
+    
+
+def download_submssions_from_student(course_id, course_work_id, student_id,
+                                     download_dir=None, drive_service=None):
+    if download_dir is None:
+        download_dir = get_course_work_dir(course_work, course=course)
+    if drive_service is None:
+        drive_service = get_drive_service_from_scope(SCOPE_DRIVE)
+    student = get_student(course_id, student_id)
+    student_name = student['profile']['name']['fullName']
+    submissions = list_submissions_for_student(course_id, course_work_id, 
+                                               student_id)
+    for submission in submissions:
+        download_assignment_submission_files(submission, student_name, 
+                                             download_dir=download_dir,
+                                             drive_service=drive_service)
+
+
 def download_assignment_submission_files(assignment_submission, student_name,
                                          download_dir, drive_service):
     if 'assignmentSubmission' not in assignment_submission:
@@ -238,6 +293,10 @@ def download_assignment_submission_files(assignment_submission, student_name,
         for i, attachment in enumerate(attachments):
             download_attachment(attachment, student_name, download_dir,
                                 drive_service, suffix=i)
+
+
+# def download_submission(course_id=None, course_work_id=None, 
+                        # submission_id=None, submission=None):
 
 
 def download_attachment(attachment, student_name, download_dir, drive_service,
@@ -363,3 +422,8 @@ def make_string_safe_filename(s):
 
 def make_datetime_str(dt):
     return '{:%Y-%m-%d_%H-%M-%S}'.format(dt)
+
+
+def parse_google_datetime(dt_string):
+    from datetime import datetime
+    return datetime.strptime(dt_string, 'Y-%m-%dT%H:%M:%S.%fZ')
