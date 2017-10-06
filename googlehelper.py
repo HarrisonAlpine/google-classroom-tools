@@ -243,7 +243,7 @@ def download_unreturned_assignment_submissions(course_id, course_work_id,
         submissions = list_assignments(course_id, course_work_id)
     if assignment_dir is None:
         assignment_dir = get_course_work_dir(course_work, course=course)
-    assignment_dir += '--UNRETURNED'
+        assignment_dir += '--UNRETURNED'
     drive_service = get_drive_service_from_scope(SCOPE_DRIVE)
     student_id_dict = create_student_id_dict(course_id)
     os.makedirs(assignment_dir, exist_ok=True)
