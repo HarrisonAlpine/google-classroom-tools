@@ -251,8 +251,11 @@ def download_unreturned_assignment_submissions(course_id, course_work_id,
     for submission in new_submissions:
         user_id = submission['userId']
         student_name = student_id_dict[user_id]['profile']['name']['fullName']
-        download_assignment_submission_files(submission, student_name,
-                                             assignment_dir, drive_service)
+        try:
+            download_assignment_submission_files(submission, student_name,
+                                                assignment_dir, drive_service)
+        except:
+            print('\tCould not download {}\'s file'.format(student_name))
     
 
 def download_submssions_from_student(course_id, course_work_id, student_id,
@@ -287,12 +290,18 @@ def download_assignment_submission_files(assignment_submission, student_name,
     if not attachments:
         return
     if len(attachments) == 1:
-        download_attachment(attachments[0], student_name, download_dir,
-                            drive_service)
+        try:
+            download_attachment(attachments[0], student_name, download_dir,
+                                drive_service)
+        except:
+            print('\tCould not download {}\'s file'.format(student_name))
     else:
         for i, attachment in enumerate(attachments):
-            download_attachment(attachment, student_name, download_dir,
-                                drive_service, suffix=i)
+            try:
+                download_attachment(attachment, student_name, download_dir,
+                                    drive_service, suffix=i)
+            except:
+                print('\tCould not download {}\'s file'.format(student_name))
 
 
 # def download_submission(course_id=None, course_work_id=None, 
@@ -369,23 +378,28 @@ def create_student_id_dict(course_id=None, students=None):
     return student_id_dict
 
 
-def get_download_dir():
-    return os.path.join('.', DOWNLOAD_DIR)
+def get_download_dir(root_dir=None, shorten=False):
+    if root_dir is None:
+        os.path.join('.', DOWNLOAD_DIR)
+    return root_dir
 
 
-def get_course_dir(course):
+def get_course_dir(course, root_dir=None, shorten=False):
     course_name = course_full_name(course)
     course_dir_name = make_string_safe_filename(course_name)
-    course_dir = os.path.join(get_download_dir(), course_dir_name)
+    course_dir = os.path.join(get_download_dir(root_dir=root_dir, 
+                                               shorten=shorten), 
+                              course_dir_name)
     # os.makedirs(course_dir, exist_ok=True)
     return course_dir
 
 
-def get_course_work_dir(course_work, course=None, timeStamp=True):
+def get_course_work_dir(course_work, course=None, timeStamp=True, 
+                        root_dir=None, shorten=False):
     if course is None:
         course_id = course_work['courseId']
         course = get_course(course_id)
-    course_dir = get_course_dir(course)
+    course_dir = get_course_dir(course, root_dir=root_dir, shorten=shorten)
     course_work_title = course_work['title']
     course_work_dir = os.path.join(course_dir, course_work_title)
     if timeStamp:

@@ -4,6 +4,7 @@ import googlehelper as gh
 import json
 import os
 
+ROOT_DIR = os.path.join(os.path.expanduser('~'), 'class-downloads')
 
 def submission_string(submission):
     student_id = submission['userId']
@@ -30,7 +31,8 @@ if __name__ == '__main__':
     course_work_id = assignment['id']
     submissions = gh.list_submissions(course_id, course_work_id)
     assignment_dir = gh.get_course_work_dir(assignment, course=course,
-                                            timeStamp=True)
+                                            timeStamp=True,
+                                            root_dir=ROOT_DIR)
     assignment_dir += '--UNRETURNED'
 
     download_function = gh.download_unreturned_assignment_submissions
