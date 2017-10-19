@@ -120,7 +120,8 @@ def download_file(drive_service, file_id, filename):
     fh = io.BytesIO()
     downloader = MediaIoBaseDownload(fh, request)
     done = False
-    # print('Downloading into {}'.format(filename))
+    full_path = os.path.abspath(os.path.expanduser(filename))
+    print('Downloading into {}'.format(full_path))
     while done is False:
         status, done = downloader.next_chunk()
         # print("Download {}%.".format(int(status.progress() * 100)))
@@ -235,19 +236,42 @@ def download_unreturned_assignment_submissions(course_id, course_work_id,
                                                course=None, course_work=None,
                                                submissions=None,
                                                assignment_dir=None):
+    f = download_assignment_submissions_with_state
+    f(['RETURNED'], course_id, course_work_id, course, course_work, 
+      submissions, assignment_dir, not_matching=True)
+
+
+def download_turned_in_assignment_submissions(course_id, course_work_id,
+                                              course=None, course_work=None,
+                                              submissions=None,
+                                              assignment_dir=None):
+    f = download_assignment_submissions_with_state
+    f(['TURNED_IN'], course_id, course_work_id, course, course_work, 
+      submissions, assignment_dir, not_matching=True)
+
+
+def download_assignment_submissions_with_state(states, course_id, 
+                                               course_work_id,
+                                               course=None, course_work=None,
+                                               submissions=None,
+                                               assignment_dir=None, 
+                                               not_matching=False):
     if course is None:
         course = get_course(course_id)
     if course_work is None:
         course_work = get_course_work(course_id, course_work_id)
     if submissions is None:
-        submissions = list_assignments(course_id, course_work_id)
+        submissions = list_submissions(course_id, course_work_id)
     if assignment_dir is None:
         assignment_dir = get_course_work_dir(course_work, course=course)
         assignment_dir += '--UNRETURNED'
     drive_service = get_drive_service_from_scope(SCOPE_DRIVE)
     student_id_dict = create_student_id_dict(course_id)
     os.makedirs(assignment_dir, exist_ok=True)
-    new_submissions = [s for s in submissions if s['state'] != 'RETURNED']
+    if not_matching:
+        new_submissions = [s for s in submissions if s['state'] not in states]
+    else:
+        new_submissions = [s for s in submissions if s['state'] in states]
     for submission in new_submissions:
         user_id = submission['userId']
         student_name = student_id_dict[user_id]['profile']['name']['fullName']
@@ -380,7 +404,7 @@ def create_student_id_dict(course_id=None, students=None):
 
 def get_download_dir(root_dir=None, shorten=False):
     if root_dir is None:
-        os.path.join('.', DOWNLOAD_DIR)
+        return os.path.join('.', DOWNLOAD_DIR)
     return root_dir
 
 
@@ -401,7 +425,8 @@ def get_course_work_dir(course_work, course=None, timeStamp=True,
         course = get_course(course_id)
     course_dir = get_course_dir(course, root_dir=root_dir, shorten=shorten)
     course_work_title = course_work['title']
-    course_work_dir = os.path.join(course_dir, course_work_title)
+    course_work_dir = make_string_safe_filename(course_work_title)
+    course_work_dir = os.path.join(course_dir, course_work_dir)
     if timeStamp:
         import datetime
         stamp = make_datetime_str(datetime.datetime.now())
