@@ -258,8 +258,34 @@ def download_unreturned_assignment_submissions(course_id, course_work_id,
             print('\tCould not download {}\'s file'.format(student_name))
     
 
-def download_submssions_from_student(course_id, course_work_id, student_id,
-                                     download_dir=None, drive_service=None):
+def download_done_assignment_submissions(course_id, course_work_id,
+                                         course=None, course_work=None,
+                                         submissions=None,
+                                         assignment_dir=None):
+    if course is None:
+        course = get_course(course_id)
+    if course_work is None:
+        course_work = get_course_work(course_id, course_work_id)
+    if submissions is None:
+        submissions = list_submissions(course_id, course_work_id)
+    if assignment_dir is None:
+        assignment_dir = get_course_work_dir(course_work, course=course)
+    drive_service = get_drive_service_from_scope(SCOPE_DRIVE)
+    student_id_dict = create_student_id_dict(course_id)
+    os.makedirs(assignment_dir, exist_ok=True)
+    new_submissions = [s for s in submissions if s['state'] == 'TURNED_IN']
+    for submission in new_submissions:
+        user_id = submission['userId']
+        student_name = student_id_dict[user_id]['profile']['name']['fullName']
+        try:
+            download_assignment_submission_files(submission, student_name,
+                                                assignment_dir, drive_service)
+        except:
+            print('\tCould not download {}\'s file'.format(student_name))
+    
+
+def download_submissions_from_student(course_id, course_work_id, student_id,
+                                      download_dir=None, drive_service=None):
     if download_dir is None:
         download_dir = get_course_work_dir(course_work, course=course)
     if drive_service is None:
@@ -400,7 +426,7 @@ def get_course_work_dir(course_work, course=None, timeStamp=True,
         course_id = course_work['courseId']
         course = get_course(course_id)
     course_dir = get_course_dir(course, root_dir=root_dir, shorten=shorten)
-    course_work_title = course_work['title']
+    course_work_title = make_string_safe_filename(course_work['title'])
     course_work_dir = os.path.join(course_dir, course_work_title)
     if timeStamp:
         import datetime
