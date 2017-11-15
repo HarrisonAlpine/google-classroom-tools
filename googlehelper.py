@@ -25,6 +25,7 @@ SCOPE_PREFIX = 'https://www.googleapis.com/auth/'
 SCOPE_COURSES = SCOPE_PREFIX + 'classroom.courses.readonly'
 SCOPE_COURSEWORK = SCOPE_PREFIX + 'classroom.coursework.students.readonly'
 SCOPE_ROSTERS = SCOPE_PREFIX + 'classroom.rosters.readonly'
+SCOPE_PROFILE = SCOPE_PREFIX + 'classroom.profile.emails'
 SCOPE_STUDENT_SUBMISSIONS = SCOPE_PREFIX + \
                             'classroom.student-submissions.students.readonly'
 SCOPE_DRIVE = SCOPE_PREFIX + 'drive.readonly'
@@ -32,6 +33,7 @@ SCOPE_DRIVE = SCOPE_PREFIX + 'drive.readonly'
 SCOPE_ALL = [SCOPE_COURSES,
              SCOPE_COURSEWORK,
              SCOPE_ROSTERS,
+             SCOPE_PROFILE,
              SCOPE_STUDENT_SUBMISSIONS,
              SCOPE_DRIVE]
 
@@ -59,17 +61,17 @@ ASSIGNMENT = 'ASSIGNMENT'
 
 
 def get_credentials(scope):
-    if type(scope) is str:
-        credential_name = credentials_file_from_scope(scope)
-        # if scope not in CREDENTIAL_FROM_SCOPE:
-        #     raise Exception('Scope (' + scope + ') is invalid.')
-        # credential_name = CREDENTIAL_FROM_SCOPE[scope]
-    else:
-        credential_name = credentials_file_from_scope('-'.join(scope))
-        # for s in scope:
-        #     if s not in CREDENTIAL_FROM_SCOPE:
-        #         raise Exception('Scope "' + s + '" was invalid.')
-        # credential_name = CREDENTIAL_MULTIPLE
+    # if type(scope) is str:
+    #     credential_name = credentials_file_from_scope(scope)
+    #     # if scope not in CREDENTIAL_FROM_SCOPE:
+    #     #     raise Exception('Scope (' + scope + ') is invalid.')
+    #     # credential_name = CREDENTIAL_FROM_SCOPE[scope]
+    # else:
+    #     credential_name = credentials_file_from_scope('-'.join(scope))
+    #     # for s in scope:
+    #     #     if s not in CREDENTIAL_FROM_SCOPE:
+    #     #         raise Exception('Scope "' + s + '" was invalid.')
+    #     # credential_name = CREDENTIAL_MULTIPLE
     ###########################################################################
     # we really need all of them, so
     scope = SCOPE_ALL
@@ -146,7 +148,6 @@ def response_get(fn, **kwargs):
 
 
 def get_course(course_id):
-
     service = get_service_from_scope(SCOPE_COURSES)
     fn = service.courses().get
     course = response_get(fn, id=course_id)
