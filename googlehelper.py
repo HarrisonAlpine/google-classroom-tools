@@ -25,7 +25,7 @@ SCOPE_PREFIX = 'https://www.googleapis.com/auth/'
 SCOPE_COURSES = SCOPE_PREFIX + 'classroom.courses.readonly'
 SCOPE_COURSEWORK = SCOPE_PREFIX + 'classroom.coursework.students.readonly'
 SCOPE_ROSTERS = SCOPE_PREFIX + 'classroom.rosters.readonly'
-SCOPE_PROFILE = SCOPE_PREFIX + 'classroom.profile.emails'
+SCOPE_PROFILE_EMAILS = SCOPE_PREFIX + 'classroom.profile.emails'
 SCOPE_STUDENT_SUBMISSIONS = SCOPE_PREFIX + \
                             'classroom.student-submissions.students.readonly'
 SCOPE_DRIVE = SCOPE_PREFIX + 'drive.readonly'
@@ -33,7 +33,7 @@ SCOPE_DRIVE = SCOPE_PREFIX + 'drive.readonly'
 SCOPE_ALL = [SCOPE_COURSES,
              SCOPE_COURSEWORK,
              SCOPE_ROSTERS,
-             SCOPE_PROFILE,
+             SCOPE_PROFILE_EMAILS,
              SCOPE_STUDENT_SUBMISSIONS,
              SCOPE_DRIVE]
 
@@ -355,9 +355,6 @@ def download_attachment(attachment, student_name, download_dir, drive_service,
 
 def get_course_from_user():
     courses = list_courses()
-
-    def course_full_name(course):
-        return '{} {}'.format(course['name'], course['section'])
     return get_choice_from_user(courses, course_full_name,
                                 title='Courses')
 
@@ -391,7 +388,7 @@ def get_choice_from_user(choices, strf, title=None):
 
 
 def course_full_name(course):
-    return '{}-{}'.format(course['name'], course['section'])
+    return '{} {}'.format(course['name'], course['section'])
 
 
 def create_student_id_dict(course_id=None, students=None):
